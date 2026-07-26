@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 📋 Pro Attendance System
 
 A secure MERN stack student attendance system with **QR code generation** and **GPS geo-fence verification**.
@@ -176,3 +177,6 @@ pro-attendance/
 
 MIT — Free for personal and commercial use.
 
+=======
+# pro_attendence1
+>>>>>>> 85f6fa03358aa77ef25b306645da57dedcf39c72
