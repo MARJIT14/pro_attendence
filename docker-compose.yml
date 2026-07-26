@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: pro-attendance-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: pro_attendance
+
+  api:
+    build: .
+    container_name: pro-attendance-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    depends_on:
+      - mongodb
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/pro_attendance
+      - JWT_SECRET=${JWT_SECRET:-change_this_in_production}
+      - JWT_EXPIRES_IN=7d
+      - GEO_LATITUDE=${GEO_LATITUDE:-27.7172}
+      - GEO_LONGITUDE=${GEO_LONGITUDE:-85.3240}
+      - GEO_RADIUS_METERS=${GEO_RADIUS_METERS:-50}
+      - QR_TTL_SECONDS=${QR_TTL_SECONDS:-45}
+
+volumes:
+  mongodb_data:
+

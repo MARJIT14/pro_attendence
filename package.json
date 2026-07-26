@@ -1,0 +1,15 @@
+{
+  "name": "pro-attendance",
+  "version": "1.0.0",
+  "description": "MERN Student Attendance System with QR & GPS verification",
+  "scripts": {
+    "server": "cd server && npm start",
+    "client": "cd client && npm start",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+
