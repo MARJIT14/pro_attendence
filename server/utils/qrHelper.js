@@ -34,7 +34,7 @@ async function generateQRDataUrl(session) {
     margin: 2,
     color: {
       dark: '#1a1a2e',   // Dark color for QR modules
-      light: '#ffffff',  // Background
+      light: '#eeff00ff',  // Background
     },
   });
 

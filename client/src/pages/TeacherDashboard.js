@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 export default function TeacherDashboard() {
   const { user, logout, saveLocation, API } = useAuth();
@@ -27,6 +36,12 @@ export default function TeacherDashboard() {
 
   // ── End Session State ──────────────────────
   const [endingSession, setEndingSession] = useState(false);
+
+  // ── Session Details Modal State ────────────
+  const [selectedSessionForDetails, setSelectedSessionForDetails] = useState(null);
+  const [sessionDetails, setSessionDetails] = useState([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
 
   // ══════════════════════════════════════════
   //  GPS Auto-Fetch Once on Mount
@@ -61,7 +76,7 @@ export default function TeacherDashboard() {
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 }
     );
     // Only run once on mount — `saveLocation` is stable in behavior
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, []);
 
   // Cleanup countdown timer on unmount
@@ -181,6 +196,25 @@ export default function TeacherDashboard() {
       console.warn('Failed to fetch session history:', err.message);
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  // ══════════════════════════════════════════
+  //  Fetch Session Details (for modal)
+  // ══════════════════════════════════════════
+  const fetchSessionDetails = async (dbId, subject, date) => {
+    setSelectedSessionForDetails({ id: dbId, subject, date });
+    setDetailsLoading(true);
+    setDetailsError('');
+    setSessionDetails([]);
+
+    try {
+      const res = await API.get(`/attendance/session/${dbId}`);
+      setSessionDetails(res.data.attendance || []);
+    } catch (err) {
+      setDetailsError(err.response?.data?.message || 'Failed to fetch details');
+    } finally {
+      setDetailsLoading(false);
     }
   };
 
@@ -322,6 +356,54 @@ export default function TeacherDashboard() {
           </div>
         )}
 
+        {/* ── Attendance Overview Chart ─────────── */}
+        {sessions.length > 0 && (
+          <div style={s.card}>
+            <h2 style={s.cardTitle}>📊 Attendance Overview</h2>
+            <div style={{ width: '100%', height: 300, marginTop: '20px' }}>
+              <ResponsiveContainer>
+                <BarChart
+                  data={[...sessions].reverse().map(sess => ({
+                    name: sess.subject,
+                    date: new Date(sess.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                    time: new Date(sess.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+                    Students: sess.studentCount,
+                  }))}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
+                  <XAxis 
+                    dataKey="name" 
+                    stroke="#aaa" 
+                    tick={{ fill: '#aaa', fontSize: 11 }}
+                    axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                  />
+                  <YAxis 
+                    stroke="#aaa" 
+                    tick={{ fill: '#aaa', fontSize: 11 }} 
+                    allowDecimals={false}
+                    axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'rgba(26,26,46,0.95)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
+                    itemStyle={{ color: '#6c63ff', fontWeight: 'bold' }}
+                    labelStyle={{ color: '#aaa', marginBottom: '4px', fontSize: '0.9rem' }}
+                    formatter={(value) => [value, 'Students']}
+                    labelFormatter={(label, payload) => {
+                      if (payload && payload.length > 0) {
+                        return `${label} - ${payload[0].payload.date} ${payload[0].payload.time}`;
+                      }
+                      return label;
+                    }}
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                  />
+                  <Bar dataKey="Students" fill="#6c63ff" radius={[6, 6, 0, 0]} maxBarSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
         {/* ── Session History ──────────────────── */}
         <div style={s.card}>
           <div style={s.historyHeader}>
@@ -360,7 +442,14 @@ export default function TeacherDashboard() {
                       <td style={{ ...s.td, textAlign: 'center', fontWeight: 600 }}>
                         {sess.studentCount}
                       </td>
-                      <td style={s.td}>
+                      <td style={{ ...s.td, display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => fetchSessionDetails(sess.id, sess.subject, sess.createdAt)}
+                          style={s.viewBtn}
+                          title="View details"
+                        >
+                          👁️ View
+                        </button>
                         {sess.isActive && (
                           <button
                             onClick={() => endSessionById(sess.fullSessionId, sess.id)}
@@ -380,6 +469,50 @@ export default function TeacherDashboard() {
           )}
         </div>
       </div>
+
+      {/* ── Detailed Session Modal ──────────────── */}
+      {selectedSessionForDetails && (
+        <div style={s.modalOverlay}>
+          <div style={s.modalContent}>
+            <div style={s.modalHeader}>
+              <h2 style={{ margin: 0 }}>📋 {selectedSessionForDetails.subject}</h2>
+              <button style={s.modalCloseBtn} onClick={() => setSelectedSessionForDetails(null)}>✖</button>
+            </div>
+            <p style={{ color: '#aaa', marginTop: '4px', marginBottom: '16px' }}>
+              {formatDate(selectedSessionForDetails.date)} — {sessionDetails.length} Student(s) Attended
+            </p>
+
+            {detailsLoading ? (
+              <p style={{ textAlign: 'center', padding: '20px', color: '#888' }}>Loading details...</p>
+            ) : detailsError ? (
+              <p style={{ textAlign: 'center', padding: '20px', color: '#ff6b6b' }}>{detailsError}</p>
+            ) : sessionDetails.length === 0 ? (
+              <p style={{ textAlign: 'center', padding: '20px', color: '#888' }}>No students marked attendance for this session.</p>
+            ) : (
+              <div style={s.tableWrapper}>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}>Name</th>
+                      <th style={s.th}>Email</th>
+                      <th style={s.th}>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sessionDetails.map((att) => (
+                      <tr key={att._id} style={s.tr}>
+                        <td style={s.td}>{att.studentId?.name || 'Unknown'}</td>
+                        <td style={s.td}>{att.studentId?.email || 'N/A'}</td>
+                        <td style={s.td}>{formatDate(att.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -574,6 +707,54 @@ const styles = {
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'background 0.2s',
+  },
+  viewBtn: {
+    padding: '4px 10px',
+    borderRadius: '6px',
+    border: '1px solid rgba(108, 99, 255, 0.5)',
+    background: 'transparent',
+    color: '#6c63ff',
+    fontSize: '0.75rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'all 0.2s',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.6)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    background: 'rgba(30,30,45,0.95)',
+    borderRadius: '12px',
+    padding: '24px',
+    width: '90%',
+    maxWidth: '500px',
+    maxHeight: '80vh',
+    overflowY: 'auto',
+    border: '1px solid rgba(255,255,255,0.1)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalCloseBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#aaa',
+    fontSize: '1.2rem',
+    cursor: 'pointer',
   },
 };
 
