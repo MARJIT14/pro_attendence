@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
 // ── Configure axios defaults ──────────────────────────
-const API = axios.create({ baseURL: 'http://localhost:5000/api' });
+const API = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api'  });
 
 // Attach JWT token to every request if available
 API.interceptors.request.use((config) => {
