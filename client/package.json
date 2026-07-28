@@ -13,6 +13,7 @@
   },
   "scripts": {
        "prebuild": "chmod +x node_modules/.bin/vite",
+       "build" : "vite build",
        "start": "react-scripts start",
        "build": "react-scripts build"
   },
