@@ -12,8 +12,10 @@
     "recharts": "^3.10.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build"
+       "prebuild": "chmod +x node_modules/.bin/vite",
+       "build": "vite build"
+       "start": "react-scripts start",
+       "build": "react-scripts build"
   },
   "proxy": "http://localhost:5000",
   "browserslist": {
