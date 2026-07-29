@@ -1,6 +1,6 @@
 <<<<<<< HEAD
 # 📋 Pro Attendance System
-
+Collab : TINKU MONI KAUSHIK,KAUSHIK HAZARIKA 
 A secure MERN stack student attendance system with **QR code generation** and **GPS geo-fence verification**.
 
 ## ✨ Features
